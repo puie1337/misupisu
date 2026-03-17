@@ -234,140 +234,6 @@ task.spawn(function()
 end)
 
 -- ──────────────────────────────────────────────
--- STAND VIEW MODULE (inline, no require needed)
--- ──────────────────────────────────────────────
-local StandView = {}
-StandView.Animation      = Instance.new("Animation")
-StandView.AnimationTrack = nil
-
-local sv_viewport   = nil  -- assigned after GUI builds the ViewportFrame
-local sv_camera     = nil
-local sv_model      = nil
-local sv_scripts    = { LocalScript = true, Script = true, ModuleScript = true }
-
-local function sv_getAttrLabel()
-	local ok, res = pcall(function()
-		return LocalPlayer
-			:WaitForChild("PlayerGui", 5)
-			:WaitForChild("newStatsGUI", 5)
-			:WaitForChild("StatsMenu", 5)
-			:WaitForChild("AttributeName", 5)
-			:WaitForChild("_Background", 5)
-			:WaitForChild("TextLabel", 5)
-	end)
-	return ok and res or nil
-end
-
-local function sv_getStandNameLabel()
-	local ok, res = pcall(function()
-		return LocalPlayer
-			:WaitForChild("PlayerGui", 5)
-			:WaitForChild("newStatsGUI", 5)
-			:WaitForChild("StatsMenu", 5)
-			:WaitForChild("StandName", 5)
-			:WaitForChild("_Background", 5)
-			:WaitForChild("TextLabel", 5)
-	end)
-	return ok and res or nil
-end
-
-function StandView.Initialize(viewport)
-	sv_viewport = viewport
-	sv_camera   = Instance.new("Camera")
-	sv_camera.CFrame  = CFrame.new(0, 0, 0)
-	sv_camera.Parent  = sv_viewport
-	sv_viewport.CurrentCamera = sv_camera
-end
-
-function StandView._Align()
-	if not sv_model then return end
-	if not sv_camera then return end
-	if sv_model:FindFirstChild("HumanoidRootPart") and sv_model:FindFirstChild("UpperTorso") then
-		local _, size = sv_model:GetBoundingBox()
-		local anchor  = (sv_model:FindFirstChild("UpperTorso")
-			or sv_model:FindFirstChild("HumanoidRootPart")
-			or sv_model.PrimaryPart).CFrame
-		local v14 = anchor * CFrame.new(0, 0, -size.Magnitude / 1.4142135623730951)
-		sv_camera.CFrame = CFrame.fromMatrix(v14.Position, -v14.RightVector, v14.UpVector, v14.LookVector)
-	end
-end
-
-function StandView._Update(modelToShow)
-	if sv_model then sv_model:Destroy(); sv_model = nil end
-	if not sv_viewport then return end
-	if modelToShow and (modelToShow:FindFirstChildOfClass("AnimationController")
-		or modelToShow:FindFirstChildOfClass("Animator")) then
-		sv_model = modelToShow:Clone()
-		sv_model:ScaleTo(1)
-		sv_model.Parent = sv_viewport.WorldModel
-		if sv_model:FindFirstChild("HumanoidRootPart") then
-			sv_model.HumanoidRootPart.Anchored = true
-		end
-	end
-end
-
-function StandView._Uncover()
-	if not sv_model then return end
-	for _, v in pairs(sv_model:GetDescendants()) do
-		if (v:IsA("BasePart") or v:IsA("Texture") or v:IsA("Decal") or v:IsA("Beam"))
-			and v.Name ~= "HumanoidRootPart"
-			and v.Name ~= "TrailPart"
-			and v.Name ~= "CamSubject"
-			and v.Name ~= "PosPart"
-			and v.Name ~= "Bubble"
-			and v.Name ~= "flag1"
-			and v.Parent.Name ~= "flag1"
-			and v.Name ~= "Gun"
-			and v.Name ~= "LTPart"
-			and not v:GetAttribute("FullTransparency")
-		then
-			if v:IsA("Beam") then
-				v.Enabled = true
-			else
-				v.Transparency = 0
-			end
-		else
-			if v:IsA("ParticleEmitter") and v.Name == "Aura" then
-				v.Enabled = true
-			end
-			if v:IsA("LocalScript") then
-				v.Enabled = false
-			end
-		end
-	end
-end
-
-function StandView._LoadIdle(animId)
-	if not animId or not sv_model then return end
-	local ctrl = sv_model:WaitForChild("AnimationController", 5)
-	if ctrl then
-		local animator = ctrl:FindFirstChildOfClass("Animator") or ctrl
-		StandView.Animation.AnimationId = animId
-		StandView.AnimationTrack = animator:LoadAnimation(StandView.Animation)
-		StandView.AnimationTrack:Play()
-	end
-end
-
--- Called by fireSummon / auto-summon detection to refresh the viewport
--- modelInstance: the stand Model in workspace.Living[PlayerName].Stand.Model
--- animId: optional animation asset id string
-function StandView.ShowStand(modelInstance, animId)
-	if not sv_viewport then return end
-	-- strip scripts from a fresh clone before handing to _Update
-	task.wait(1)
-	if modelInstance then
-		for _, v in modelInstance:GetChildren() do
-			if sv_scripts[v.ClassName] then v:Destroy() end
-		end
-	end
-	task.wait()
-	StandView._Update(modelInstance)
-	StandView._Uncover()
-	StandView._LoadIdle(animId)
-	StandView._Align()
-end
-
--- ──────────────────────────────────────────────
 -- AUTO SUMMON
 -- ──────────────────────────────────────────────
 local summonDeathConn  = nil
@@ -391,9 +257,12 @@ local function getArrowPart()
 end
 
 local function isStandSummoned()
-	local arrowPart = getArrowPart()
-	if not arrowPart then return true end -- can't detect, assume summoned
-	return arrowPart.Transparency ~= 1 -- transparency 1 = invisible = unsummoned
+	local lowerTorso = workspace:FindFirstChild("Living")
+		and workspace.Living:FindFirstChild("muiecbro132")
+		and workspace.Living.muiecbro132:FindFirstChild("Stand")
+		and workspace.Living.muiecbro132.Stand:FindFirstChild("LowerTorso")
+	if not lowerTorso then return true end -- can't detect, assume summoned
+	return lowerTorso.Transparency ~= 1 -- transparency 1 = invisible = unsummoned
 end
 
 local function fireSummon()
@@ -410,28 +279,6 @@ local function fireSummon()
 		if summonCountLabel then
 			summonCountLabel.Text = "Fires: " .. summonFireCount
 		end
-		-- Refresh stand viewport after a short delay (model loads after summon event)
-		task.delay(1.2, function()
-			pcall(function()
-				local standModel = workspace:FindFirstChild("Living")
-					and workspace.Living:FindFirstChild(LocalPlayer.Name)
-					and workspace.Living[LocalPlayer.Name]:FindFirstChild("Stand")
-					and workspace.Living[LocalPlayer.Name].Stand:FindFirstChild("Model")
-				if standModel then
-					local animId = nil
-					local ctrl = standModel:FindFirstChildOfClass("AnimationController")
-					if ctrl then
-						local anim = ctrl:FindFirstChildOfClass("Animator")
-						if anim then
-							for _, a in anim:GetChildren() do
-								if a:IsA("Animation") then animId = a.AnimationId; break end
-							end
-						end
-					end
-					StandView.ShowStand(standModel, animId)
-				end
-			end)
-		end)
 	end
 end
 
@@ -1346,73 +1193,6 @@ summonCountLabel.Size                = UDim2.new(1, 0, 0, 14)
 summonCountLabel.LayoutOrder         = 8
 summonCountLabel.TextXAlignment      = Enum.TextXAlignment.Right
 summonCountLabel.Parent              = spamContent
-
--- ── Stand Preview Viewport (StandView) ──────────────────────
-local vpFrame = Instance.new("ViewportFrame")
-vpFrame.Size               = UDim2.new(1, 0, 0, 130)
-vpFrame.BackgroundColor3   = Color3.fromRGB(12, 10, 22)
-vpFrame.BorderSizePixel    = 0
-vpFrame.Ambient            = Color3.fromRGB(180, 180, 200)
-vpFrame.LightDirection     = Vector3.new(-1, -2, -1)
-vpFrame.LightColor         = Color3.fromRGB(255, 240, 220)
-vpFrame.LayoutOrder        = 9
-vpFrame.Parent             = spamContent
-corner(10, vpFrame)
-newStroke(TS.pri, 1, vpFrame)
-
-local vpWorldModel = Instance.new("WorldModel")
-vpWorldModel.Parent = vpFrame
--- expose so StandView can use it
-vpFrame.WorldModel = vpWorldModel
-
--- Label above viewport
-local vpLabel = Instance.new("TextLabel")
-vpLabel.Text               = "Stand Preview"
-vpLabel.Font               = Enum.Font.GothamBold
-vpLabel.TextSize            = 9
-vpLabel.TextColor3          = TS.sub
-vpLabel.BackgroundTransparency = 1
-vpLabel.Size                = UDim2.new(1, -8, 0, 14)
-vpLabel.Position            = UDim2.new(0, 4, 0, 2)
-vpLabel.TextXAlignment      = Enum.TextXAlignment.Left
-vpLabel.ZIndex              = 2
-vpLabel.Parent              = vpFrame
-
--- "No stand" fallback text
-local vpNoStand = Instance.new("TextLabel")
-vpNoStand.Text              = "Summon your stand to preview"
-vpNoStand.Font              = Enum.Font.Gotham
-vpNoStand.TextSize          = 10
-vpNoStand.TextColor3        = DIM
-vpNoStand.BackgroundTransparency = 1
-vpNoStand.Size              = UDim2.new(1, 0, 1, 0)
-vpNoStand.TextXAlignment    = Enum.TextXAlignment.Center
-vpNoStand.ZIndex            = 2
-vpNoStand.Parent            = vpFrame
-
--- Failure label (matches original StandView design)
-local vpFailure = Instance.new("TextLabel")
-vpFailure.Name              = "Failure"
-vpFailure.Text              = "Stand model not found"
-vpFailure.Font              = Enum.Font.Gotham
-vpFailure.TextSize          = 10
-vpFailure.TextColor3        = TS.bad
-vpFailure.BackgroundTransparency = 1
-vpFailure.Size              = UDim2.new(1, 0, 0, 20)
-vpFailure.Position          = UDim2.new(0, 0, 1, -22)
-vpFailure.TextXAlignment    = Enum.TextXAlignment.Center
-vpFailure.ZIndex            = 2
-vpFailure.Visible           = false
-vpFailure.Parent            = vpFrame
-
--- Initialize StandView with this viewport
-StandView.Initialize(vpFrame)
--- Hide fallback text once a stand loads
-local _origShowStand = StandView.ShowStand
-StandView.ShowStand = function(m, a)
-	vpNoStand.Visible = (m == nil)
-	_origShowStand(m, a)
-end
 
 local statusTxt, statusDot = makeStatusPill(spamContent, 9, TS.pri)
 statusTxt.Text = "Boss: searching..."
