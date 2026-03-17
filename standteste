@@ -355,7 +355,7 @@ local function isStandSummoned()
 	local humanoidRootPart = playerFolder
 		and playerFolder:FindFirstChild("Stand")
 		and playerFolder.Stand:FindFirstChild("HumanoidRootPart")
-	if not humanoidRootPart then return true end -- can't detect, assume summoned
+	if not humanoidRootPart then return false end -- part missing = stand not summoned, keep trying
 	return humanoidRootPart.Transparency ~= 1 -- transparency 1 = invisible = unsummoned
 end
 
