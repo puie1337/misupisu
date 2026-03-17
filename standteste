@@ -1912,7 +1912,6 @@ stopListBox.TextColor3         = TC.text
 stopListBox.PlaceholderText    = "Legendary, Hacker, Scourge, ..."
 stopListBox.PlaceholderColor3  = DIM
 stopListBox.ClearTextOnFocus   = false
-stopListBox.MultiLine          = false
 stopListBox.ClipsDescendants   = true
 stopListBox.Text               = table.concat(standStopList, ", ")
 stopListBox.LayoutOrder        = 1
@@ -2067,28 +2066,29 @@ end)
 
 -- ── Auto-load on script start ──
 task.spawn(function()
-    task.wait(0.5)  -- small delay to let GUI finish building
-    local ok, result = loadConfig()
-    if ok then
-        -- Refresh UI fields
-        cfgWHBox.Text   = webhookURL
-        cfgSWHBox.Text  = standWebhookURL
-        cfgMentBox.Text = standMentionID
-        stopListBox.Text= table.concat(standStopList, ", ")
-        for i, v in ipairs(IVSTEPS) do
-            if v == webhookInterval then ivIdx = i end
+    task.wait(0.5)
+    pcall(function()
+        local ok, result = loadConfig()
+        if ok then
+            cfgWHBox.Text   = webhookURL
+            cfgSWHBox.Text  = standWebhookURL
+            cfgMentBox.Text = standMentionID
+            stopListBox.Text= table.concat(standStopList, ", ")
+            for i, v in ipairs(IVSTEPS) do
+                if v == webhookInterval then ivIdx = i end
+            end
+            updateCfgIv()
+            autoLoadEnabled = true
+            setAutoLoadVis(true)
+            autoLoadBadge.Text      = "ON"
+            autoLoadBadge.TextColor3= TC.good
+            cfgStatusLbl.Text       = "✓ Config auto-loaded on join."
+            cfgStatusLbl.TextColor3 = TC.good
         end
-        updateCfgIv()
-        autoLoadEnabled = true
-        setAutoLoadVis(true)
-        autoLoadBadge.Text      = "ON"
-        autoLoadBadge.TextColor3= TC.good
-        cfgStatusLbl.Text       = "✓ Config auto-loaded on join."
-        cfgStatusLbl.TextColor3 = TC.good
-    end
+    end)
 end)
 
-
+local function switchTab(tab)
     spamContent.Visible    = (tab == "spam")
     webhookContent.Visible = (tab == "webhook")
     standContent.Visible   = (tab == "stand")
