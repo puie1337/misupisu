@@ -1,9 +1,9 @@
 -- v3-fixed
--- ══════════════════════════════════════════════
+-- ===========================================
 -- All-in-One Script: Boss Spammer + Webhook + Stand Auto-Roll
--- Tabs: ⚔ Spammer | 🔔 Webhook | ✦ Stand Roll
+-- Tabs: Spammer | Webhook | Stand Roll
 -- Anti-AFK runs silently in the background (no tab)
--- ══════════════════════════════════════════════
+-- ===========================================
 
 local Players          = game:GetService("Players")
 local RunService       = game:GetService("RunService")
@@ -15,9 +15,9 @@ local VirtualUser      = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- ANTI-AFK (silent, always on)
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 LocalPlayer.Idled:Connect(function()
 	pcall(function()
 		VirtualUser:CaptureController()
@@ -25,16 +25,16 @@ LocalPlayer.Idled:Connect(function()
 	end)
 end)
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- BOSS SPAMMER CONFIG
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local STUDS_BEHIND = 8
 local FIRE_RATE    = 0.05
 local TWEEN_TIME   = 0.3
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- BOSS SPAMMER STATE
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local useTween         = true
 local goActive         = false
 local spamActive       = false
@@ -44,9 +44,9 @@ local autoDiavoloActive = false
 local autoSummonActive = false
 local questActive      = false
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- WEBHOOK STATE
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local webhookURL        = "https://discord.com/api/webhooks/YOUR_WEBHOOK_HERE"
 local webhookInterval   = 60
 local webhookActive     = false
@@ -54,9 +54,9 @@ local lastWebhookSend   = 0
 local webhookSendCount  = 0
 local webhookCountLabel = nil  -- assigned after GUI
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- STAND AUTO-ROLL STATE
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local standRollActive   = false
 local standWebhookURL   = "https://discord.com/api/webhooks/YOUR_STAND_WEBHOOK_HERE"
 local standLoopCooldown = 5
@@ -113,9 +113,9 @@ local function getUseEvent()
 	return useItemEvent
 end
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- BOSS HELPERS
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local function getModel()
 	local living = game.workspace:FindFirstChild("Living")
 	if not living then return nil end
@@ -144,9 +144,9 @@ local function getBehindCFrame(model)
 	return root.CFrame * CFrame.new(0, 0, STUDS_BEHIND)
 end
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- MOVEMENT
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local activeTween = nil
 
 local function moveBehindBoss()
@@ -167,9 +167,9 @@ local function moveBehindBoss()
 	end
 end
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- SELECTABLE REMOTE SPAMMER
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 
 -- Table of available remotes. "selected" is toggled from the GUI.
 local SPAM_REMOTES = {
@@ -237,9 +237,9 @@ task.spawn(function()
 	end
 end)
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- GO-BEHIND LOOP
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 task.spawn(function()
 	while true do
 		if goActive then
@@ -251,9 +251,9 @@ task.spawn(function()
 	end
 end)
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- AUTO FIRE LOOP
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local lastAutoFire = 0
 
 task.spawn(function()
@@ -281,9 +281,9 @@ task.spawn(function()
 	end
 end)
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- AUTO FIRE NPC (JOTARO'S LAIR) LOOP
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local lastAutoFireNPC = 0
 
 task.spawn(function()
@@ -304,9 +304,9 @@ task.spawn(function()
 	end
 end)
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- AUTO FIRE NPC (DIAVOLO'S LAIR) LOOP
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local lastAutoDiavolo = 0
 
 task.spawn(function()
@@ -327,8 +327,8 @@ task.spawn(function()
 	end
 end)
 
--- ──────────────────────────────────────────────
--- ──────────────────────────────────────────────
+-- ------------------------------------------
+-- ------------------------------------------
 local summonDeathConn  = nil
 local summonFireCount  = 0
 local summonCountLabel = nil
@@ -406,9 +406,9 @@ end
 LocalPlayer.CharacterAdded:Connect(function(char) connectSummonDeath(char) end)
 if LocalPlayer.Character then connectSummonDeath(LocalPlayer.Character) end
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- DIO QUEST LOOP
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local function getJotaro()
 	local living = workspace:FindFirstChild("Living")
 	if not living then return nil end
@@ -504,9 +504,9 @@ task.spawn(function()
 	end
 end)
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- INVENTORY WEBHOOK
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local function getItemAmount(itemName)
 	local item = LocalPlayer.Backpack:FindFirstChild(itemName)
 	if item then return item:GetAttribute("ItemAmount") or 0 end
@@ -567,9 +567,9 @@ task.spawn(function()
 	end
 end)
 
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 -- STAND AUTO-ROLL LOGIC
--- ──────────────────────────────────────────────
+-- ------------------------------------------
 local function sendStandAlert(foundAttribute)
 	if standWebhookURL == "" or standWebhookURL == "https://discord.com/api/webhooks/YOUR_STAND_WEBHOOK_HERE" then return end
 
@@ -715,13 +715,13 @@ task.spawn(function()
 end)
 
 
--- ══════════════════════════════════════════════════════════════
+-- ===========================================
 --   GUI  ·  NEON REBIRTH  —  per-tab colour themes
--- ══════════════════════════════════════════════════════════════
+-- ===========================================
 
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 --  NEUTRAL PALETTE  (shared across all tabs)
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 local BG      = Color3.fromRGB(7,   6,  14)   -- near-black base
 local SURFACE = Color3.fromRGB(13,  11,  24)   -- panel bg
 local CARD    = Color3.fromRGB(19,  16,  34)   -- row cards
@@ -731,7 +731,7 @@ local TOGOFF  = Color3.fromRGB(30,  26,  48)   -- toggle OFF track
 local DIM     = Color3.fromRGB(65,  58, 100)   -- muted border / icon
 local MUTED   = Color3.fromRGB(100, 90, 145)   -- secondary text
 
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 --  PER-TAB THEME TABLES
 --    .pri   = main accent / toggle-on colour
 --    .glow  = brighter variant for top-bar / hover
@@ -739,7 +739,7 @@ local MUTED   = Color3.fromRGB(100, 90, 145)   -- secondary text
 --    .sub   = softer label text
 --    .good  = "success" green-ish
 --    .bad   = "error" red-ish
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 local THEME = {
     spam = {   -- ⚔  Crimson / Ember
         pri  = Color3.fromRGB(230,  55,  75),
@@ -783,9 +783,9 @@ local THEME = {
     },
 }
 
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 --  MICRO HELPERS
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 local function corner(r, p)
     local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r); c.Parent = p
 end
@@ -807,9 +807,9 @@ local function tw(obj, t, props)
     TweenService:Create(obj, TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 --  SCREEN GUI
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 local PW     = 318   -- panel width
 local PH     = 430   -- panel height (auto-sizes via scroll)
 
@@ -852,9 +852,9 @@ topCap.ZIndex           = 6
 topCap.Parent           = frame
 corner(16, topCap)
 
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 --  TITLE BAR
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 local titleBar = Instance.new("Frame")
 titleBar.Name             = "TitleBar"
 titleBar.Size             = UDim2.new(1, 0, 0, 50)
@@ -936,9 +936,9 @@ end
 local minBtn   = winBtn("—", MUTED,                           -58)
 local closeBtn = winBtn("✕", Color3.fromRGB(255, 65, 85),     -28)
 
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 --  TAB BAR  (individual pill per tab with its own colour)
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 local tabBg = Instance.new("Frame")
 tabBg.Size             = UDim2.new(1, -16, 0, 36)
 tabBg.Position         = UDim2.new(0, 8, 0, 56)
@@ -1003,9 +1003,9 @@ local standTabBtn   = makeTabPill("stand",   "★  Stand Roll", 3)
 local questTabBtn   = makeTabPill("quest",   "📜  Quests",    4)
 local configTabBtn  = makeTabPill("config",  "⚙  Config",     5)
 
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 --  SCROLLABLE BODY
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 local bodyArea = Instance.new("ScrollingFrame")
 bodyArea.Name                   = "BodyArea"
 bodyArea.Size                   = UDim2.new(1, -6, 1, -102)
@@ -1018,9 +1018,9 @@ bodyArea.CanvasSize             = UDim2.new(0, 0, 0, 0)
 bodyArea.AutomaticCanvasSize    = Enum.AutomaticSize.Y
 bodyArea.Parent                 = frame
 
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 --  SHARED WIDGET CONSTRUCTORS
--- ────────────────────────────────────────────────────────────
+-- ------------------------------------------
 
 local function makeContentFrame(parent)
     local f = Instance.new("Frame")
@@ -1227,9 +1227,9 @@ local function makeActionBtn(parent, text, order, col, glowCol)
     return btn
 end
 
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 --  ⚔  SPAMMER TAB  —  Crimson / Ember
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 local TS = THEME.spam
 local spamContent = makeContentFrame(bodyArea)
 spamContent.Visible = true
@@ -1257,7 +1257,7 @@ end)
 
 makeSection(spamContent, "Combat", 3, TS.pri)
 
--- ── Auto Spam toggle row ──────────────────────────────────────
+-- ------------------------------------------
 local row3 = makeRow(spamContent, "Auto Spam:", 4, TS.pri)
 local spamToggleBtn, setSpamVis = makeToggle(row3, false, TS.pri)
 local spamLabel = makeStateBadge(row3)
@@ -1267,7 +1267,7 @@ spamToggleBtn.MouseButton1Click:Connect(function()
     spamLabel.TextColor3= spamActive and TS.bad or DIM
 end)
 
--- ── Selectable remote buttons ─────────────────────────────────
+-- ------------------------------------------
 local remoteSelectFrame = Instance.new("Frame")
 remoteSelectFrame.Size             = UDim2.new(1, 0, 0, 0)
 remoteSelectFrame.AutomaticSize    = Enum.AutomaticSize.Y
@@ -1391,9 +1391,9 @@ summonCountLabel.Parent              = spamContent
 local statusTxt, statusDot = makeStatusPill(spamContent, 12, TS.pri)
 statusTxt.Text = "Boss: searching..."
 
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 --  🔔  WEBHOOK TAB  —  Sapphire / Cyan
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 local TW = THEME.webhook
 local webhookContent = makeContentFrame(bodyArea)
 
@@ -1528,9 +1528,9 @@ end)
 webhookCountLabel = makeStatusPill(webhookContent, 8, TW.pri)
 webhookCountLabel.Text = "Sent: 0"
 
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 --  ✦  STAND ROLL TAB  —  Royal Violet / Gold
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 local TR = THEME.stand
 local standContent = makeContentFrame(bodyArea)
 
@@ -1681,9 +1681,9 @@ end)
 standStatusLabel = makeStatusPill(standContent, 11, TR.pri)
 standStatusLabel.Text = "Idle"
 
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 --  📜  QUESTS TAB  —  Neon Green
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 local TQ = THEME.quest
 local questContent = makeContentFrame(bodyArea)
 
@@ -1737,15 +1737,15 @@ end)
 questStatusLabel = makeStatusPill(questContent, 5, TQ.pri)
 questStatusLabel.Text = "Idle"
 
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 --  ⚙  CONFIG TAB  —  Soft Violet
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 local TC = THEME.config
 local configContent = makeContentFrame(bodyArea)
 
-local CONFIG_FILE = "bss_config.json"
+local CONFIG_FILE = "/sdcard/Delta/workspace/bss_config.json"
 
--- ── helpers to persist config via getgenv() (works on Delta mobile) ──
+-- ------------------------------------------
 -- Falls back to writefile/readfile if available (PC executors)
 local CONFIG_KEY = "__BSSConfig__"
 
@@ -1757,28 +1757,24 @@ local function saveConfig()
         standMentionID  = standMentionID,
         standStopList   = standStopList,
     }
-    -- Always save to getgenv for in-session persistence
+    -- Save to getgenv for in-session persistence
     pcall(function() getgenv()[CONFIG_KEY] = cfg end)
-    -- Also try writefile for executors that support it
-    pcall(function()
-        if writefile then
-            local ok, encoded = pcall(function() return HttpService:JSONEncode(cfg) end)
-            if ok then writefile(CONFIG_FILE, encoded) end
-        end
-    end)
+    -- Save to file
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(cfg) end)
+    if not ok then return false, "JSON encode error" end
+    local writeOk, err = pcall(function() writefile(CONFIG_FILE, encoded) end)
+    if not writeOk then return false, tostring(err) end
     return true, "Saved!"
 end
 
 local function loadConfig()
     local cfg = nil
-    -- Try readfile first (PC executors)
+    -- Try file first
     pcall(function()
-        if readfile then
-            local raw = readfile(CONFIG_FILE)
-            if raw and raw ~= "" then
-                local ok, decoded = pcall(function() return HttpService:JSONDecode(raw) end)
-                if ok and type(decoded) == "table" then cfg = decoded end
-            end
+        local raw = readfile(CONFIG_FILE)
+        if raw and raw ~= "" then
+            local ok, decoded = pcall(function() return HttpService:JSONDecode(raw) end)
+            if ok and type(decoded) == "table" then cfg = decoded end
         end
     end)
     -- Fall back to getgenv memory store
@@ -1797,10 +1793,10 @@ local function loadConfig()
     return true, cfg
 end
 
--- ── Status pill reused for feedback messages ──
+-- ------------------------------------------
 local cfgStatusLbl
 
--- ── Section: Webhook Config ──
+-- ------------------------------------------
 makeSection(configContent, "Inventory Webhook", 1, TC.pri)
 
 -- URL input
@@ -1860,7 +1856,7 @@ end
 cfgIvMinus.MouseButton1Click:Connect(function() if ivIdx > 1 then ivIdx -= 1; updateCfgIv() end end)
 cfgIvPlus.MouseButton1Click:Connect(function() if ivIdx < #IVSTEPS then ivIdx += 1; updateCfgIv() end end)
 
--- ── Section: Stand Roll Webhook ──
+-- ------------------------------------------
 makeSection(configContent, "Stand Roll Webhook", 4, TC.pri)
 
 local cfgSWHRow = makeRow(configContent, "Stand Webhook URL:", 5, TC.pri)
@@ -1904,7 +1900,7 @@ cfgMentBox.FocusLost:Connect(function()
     standMentionID = cfgMentBox.Text
 end)
 
--- ── Section: Stop List ──
+-- ------------------------------------------
 makeSection(configContent, "Auto-Roll Stop List", 7, TC.pri)
 
 local stopListFrame = Instance.new("Frame")
@@ -1961,7 +1957,7 @@ stopListBox.FocusLost:Connect(function()
     standStopList = newList
 end)
 
--- ── Section: Save / Load ──
+-- ------------------------------------------
 makeSection(configContent, "Save & Load Config", 9, TC.pri)
 
 local cfgSaveRow = Instance.new("Frame")
@@ -2018,7 +2014,7 @@ cfgStatusLbl.Size               = UDim2.new(1, 0, 1, 0)
 cfgStatusLbl.TextXAlignment     = Enum.TextXAlignment.Center
 cfgStatusLbl.Parent             = cfgStatusFrame
 
--- ── Auto-Load toggle ──
+-- ------------------------------------------
 local autoLoadRow = makeRow(configContent, "Auto-load on join:", 12, TC.pri)
 local autoLoadBadge = Instance.new("TextLabel")
 autoLoadBadge.Text      = "OFF"
@@ -2040,7 +2036,7 @@ autoLoadToggle.MouseButton1Click:Connect(function()
     autoLoadBadge.TextColor3= autoLoadEnabled and TC.good or DIM
 end)
 
--- ── Wire up Save / Load ──
+-- ------------------------------------------
 saveBtn.MouseButton1Click:Connect(function()
     -- flush current textbox values before saving
     webhookURL      = cfgWHBox.Text
@@ -2086,7 +2082,7 @@ loadBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ── Auto-load on script start ──
+-- ------------------------------------------
 task.spawn(function()
     task.wait(0.5)
     pcall(function()
@@ -2143,9 +2139,9 @@ standTabBtn.MouseButton1Click:Connect(function()   switchTab("stand")   end)
 questTabBtn.MouseButton1Click:Connect(function()   switchTab("quest")   end)
 configTabBtn.MouseButton1Click:Connect(function()  switchTab("config")  end)
 
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 --  MINIMIZE / CLOSE
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 local minimized = false
 
 minBtn.MouseButton1Click:Connect(function()
@@ -2175,9 +2171,9 @@ closeBtn.MouseButton1Click:Connect(function()
     task.wait(0.2); screenGui:Destroy()
 end)
 
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 --  DRAGGING
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 local dragging, dragStart, startPos = false, nil, nil
 
 titleBar.InputBegan:Connect(function(i)
@@ -2201,9 +2197,9 @@ UserInputService.InputChanged:Connect(function(i)
     end
 end)
 
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 --  BOSS STATUS HEARTBEAT
--- ════════════════════════════════════════════════════════════
+-- ===========================================
 RunService.Heartbeat:Connect(function()
     local model = getModel()
     if not model then
