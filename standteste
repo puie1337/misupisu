@@ -119,6 +119,26 @@ end
 local function getModel()
 	local living = game.workspace:FindFirstChild("Living")
 	if not living then return nil end
+	local hrp = getRootPart()
+	-- If we have a character, find the closest Boss to us so two accounts
+	-- in different lairs don't both lock onto the same boss
+	if hrp then
+		local closest, closestDist = nil, math.huge
+		for _, obj in pairs(living:GetChildren()) do
+			if obj.Name == "Boss" then
+				local bossRoot = obj:FindFirstChild("HumanoidRootPart")
+					or obj:FindFirstChildWhichIsA("BasePart")
+				if bossRoot then
+					local dist = (bossRoot.Position - hrp.Position).Magnitude
+					if dist < closestDist then
+						closestDist = dist
+						closest = obj
+					end
+				end
+			end
+		end
+		return closest
+	end
 	return living:FindFirstChild("Boss")
 end
 
