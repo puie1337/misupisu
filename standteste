@@ -1455,7 +1455,7 @@ killTimerToggleBtn.MouseButton1Click:Connect(function()
     if not killTimerActive then killTimerStart = nil end
 end)
 
--- Duration stepper (mirrors the webhook interval widget exactly)
+-- Duration stepper (mirrors the webhook interval widget)
 local killDurRow = Instance.new("Frame")
 killDurRow.Size             = UDim2.new(1, 0, 0, 38)
 killDurRow.BackgroundColor3 = CARD
@@ -1492,7 +1492,6 @@ corner(8, kdPlusBtn); newStroke(TS.pri, 1, kdPlusBtn)
 kdPlusBtn.MouseEnter:Connect(function() tw(kdPlusBtn, 0.12, {BackgroundColor3 = TS.pri}) end)
 kdPlusBtn.MouseLeave:Connect(function() tw(kdPlusBtn, 0.12, {BackgroundColor3 = CARD}) end)
 
--- Clickable label in the centre — click to type a custom value
 local kdLabel = Instance.new("TextButton")
 kdLabel.Text               = "60s"
 kdLabel.Font               = Enum.Font.GothamBold
@@ -1552,13 +1551,12 @@ kdPlusBtn.MouseButton1Click:Connect(function()
     if kdIndex < #KD_STEPS then kdIndex += 1; updateKdLabel() end
 end)
 
--- Kill timer status pill (shows live countdown)
+-- Kill timer status pill
 local killTimerPillLbl, killTimerPillDot = makeStatusPill(spamContent, 15, TS.pri)
 killTimerPillLbl.Text = "Kill timer: OFF"
 killTimerLabel = killTimerPillLbl
 
 local statusTxt, statusDot = makeStatusPill(spamContent, 16, TS.pri)
-statusTxt.Text = "Boss: searching..."
 
 -- ════════════════════════════════════════════════════════════
 --  🔔  WEBHOOK TAB  —  Sapphire / Cyan
