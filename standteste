@@ -42,16 +42,6 @@ local autoFireActive   = false
 local autoFireNPCActive = false
 local autoDiavoloActive = false
 local autoSummonActive = false
-local questActive      = false
-
--- ──────────────────────────────────────────────
--- BOSS KILL TIMER STATE
--- ──────────────────────────────────────────────
-local killTimerActive    = false       -- toggled from GUI
-local killTimerDuration  = 60          -- seconds before self-reset
-local killTimerStart     = nil         -- tick() when boss was first seen alive
-local killTimerLabel     = nil         -- status pill label (assigned after GUI)
-local lastBossHP         = nil         -- tracks whether boss HP changed (optional guard)
 
 -- ──────────────────────────────────────────────
 -- WEBHOOK STATE
@@ -73,7 +63,13 @@ local standRollCount    = 0
 local standRollLabel    = nil  -- assigned after GUI
 local standStatusLabel  = nil  -- assigned after GUI
 local standMentionID    = ""   -- Discord user ID to @mention on stop alert
-local questStatusLabel  = nil  -- assigned after GUI
+-- ──────────────────────────────────────────────
+-- BOSS KILL TIMER STATE
+-- ──────────────────────────────────────────────
+local killTimerActive   = false
+local killTimerDuration = 60
+local killTimerStart    = nil
+local killTimerLabel    = nil
 
 -- Stop-list (editable from GUI)
 local standStopList = {"Legendary", "Hacker", "Scourge", "Glass Cannon"}
@@ -261,73 +257,6 @@ task.spawn(function()
 end)
 
 -- ──────────────────────────────────────────────
--- BOSS KILL TIMER LOOP
--- ──────────────────────────────────────────────
-task.spawn(function()
-	while true do
-		if killTimerActive then
-			local model = getModel()
-			local hum   = getModelHumanoid(model)
-
-			if hum and hum.Health > 0 then
-				-- Boss is alive — start/keep the timer running
-				if killTimerStart == nil then
-					killTimerStart = tick()
-				end
-
-				local elapsed  = tick() - killTimerStart
-				local remaining = math.max(0, killTimerDuration - math.floor(elapsed))
-
-				-- Update status label
-				if killTimerLabel then
-					killTimerLabel.Text      = ("Kill timer: %ds left"):format(remaining)
-					killTimerLabel.TextColor3 = remaining <= 10
-						and Color3.fromRGB(255, 75, 75)
-						or  Color3.fromRGB(255, 165, 50)
-				end
-
-				-- Time's up — reset self
-				if elapsed >= killTimerDuration then
-					killTimerStart = nil   -- reset so it re-arms next boss spawn
-					if killTimerLabel then
-						killTimerLabel.Text      = "Timeout! Resetting..."
-						killTimerLabel.TextColor3 = Color3.fromRGB(255, 75, 75)
-					end
-					pcall(function()
-						local char = getCharacter()
-						if char then
-							local hum2 = char:FindFirstChildWhichIsA("Humanoid")
-							if hum2 then
-								hum2.Health = 0
-							end
-						end
-					end)
-					task.wait(3)   -- brief pause before re-arming
-				end
-			else
-				-- Boss is dead or missing — reset the timer
-				if killTimerStart ~= nil then
-					killTimerStart = nil
-				end
-				if killTimerLabel then
-					killTimerLabel.Text      = "Kill timer: waiting for boss"
-					killTimerLabel.TextColor3 = Color3.fromRGB(100, 90, 145)
-				end
-			end
-			task.wait(0.5)
-		else
-			-- Timer is off — clear display if label exists
-			if killTimerLabel then
-				killTimerLabel.Text      = "Kill timer: OFF"
-				killTimerLabel.TextColor3 = Color3.fromRGB(65, 58, 100)
-			end
-			killTimerStart = nil
-			task.wait(0.5)
-		end
-	end
-end)
-
--- ──────────────────────────────────────────────
 -- AUTO FIRE LOOP
 -- ──────────────────────────────────────────────
 local lastAutoFire = 0
@@ -483,98 +412,54 @@ LocalPlayer.CharacterAdded:Connect(function(char) connectSummonDeath(char) end)
 if LocalPlayer.Character then connectSummonDeath(LocalPlayer.Character) end
 
 -- ──────────────────────────────────────────────
--- DIO QUEST LOOP
+-- BOSS KILL TIMER LOOP
 -- ──────────────────────────────────────────────
-local function getJotaro()
-	local living = workspace:FindFirstChild("Living")
-	if not living then return nil end
-	return living:FindFirstChild("Jotaro Part 4")
-end
-
-local function isJotaroAlive()
-	local j = getJotaro()
-	if not j then return false end
-	local hum = j:FindFirstChildWhichIsA("Humanoid", true)
-	return hum and hum.Health > 0
-end
-
-local function getM1Remote()
-	local char = LocalPlayer.Character
-	if not char then return nil end
-	local se = char:FindFirstChild("StandEvents") or char:WaitForChild("StandEvents", 1)
-	if not se then return nil end
-	return se:FindFirstChild("M1")
-end
-
 task.spawn(function()
 	while true do
-		if not questActive then
-			task.wait(0.2)
-		else
-			-- STEP 1: Fire the quest start remote
-			if questStatusLabel then questStatusLabel.Text = "Firing quest start..." end
-			pcall(function()
-				workspace:WaitForChild("Map"):WaitForChild("NPCs"):WaitForChild("DIO"):WaitForChild("Done"):FireServer()
-			end)
-			task.wait(0.5)
-
-			-- STEP 2: Wait for Jotaro to be alive
-			if questStatusLabel then questStatusLabel.Text = "Waiting for Jotaro..." end
-			local waitedFor = 0
-			while questActive and not isJotaroAlive() do
-				task.wait(0.5)
-				waitedFor += 0.5
-				if waitedFor > 30 then break end
-			end
-
-			if not questActive then task.wait(0.1) continue end
-
-			local jotaro = getJotaro()
-			if not jotaro then
-				if questStatusLabel then questStatusLabel.Text = "Jotaro not found, retrying..." end
-				task.wait(2)
-				continue
-			end
-
-			-- STEP 3: Teleport behind Jotaro
-			if questStatusLabel then questStatusLabel.Text = "Teleporting to Jotaro..." end
-			pcall(function()
-				local hrp = getRootPart()
-				local lowerTorso = workspace.Living["Jotaro Part 4"]:FindFirstChild("LowerTorso")
-				if hrp and lowerTorso then
-					hrp.CFrame = lowerTorso.CFrame * CFrame.new(0, 0, 3)
+		if killTimerActive then
+			local model = getModel()
+			local hum   = getModelHumanoid(model)
+			if hum and hum.Health > 0 then
+				if killTimerStart == nil then
+					killTimerStart = tick()
 				end
-			end)
-			task.wait(0.3)
-
-			-- STEP 4: Spam M1 until Jotaro dies
-			if questStatusLabel then questStatusLabel.Text = "Spamming M1 on Jotaro..." end
-			while questActive and isJotaroAlive() do
-				pcall(function()
-					local hrp = getRootPart()
-					local lowerTorso = workspace.Living["Jotaro Part 4"] and workspace.Living["Jotaro Part 4"]:FindFirstChild("LowerTorso")
-					if hrp and lowerTorso then
-						hrp.CFrame = lowerTorso.CFrame * CFrame.new(0, 0, 3)
+				local elapsed   = tick() - killTimerStart
+				local remaining = math.max(0, killTimerDuration - math.floor(elapsed))
+				if killTimerLabel then
+					killTimerLabel.Text       = ("Kill timer: %ds left"):format(remaining)
+					killTimerLabel.TextColor3 = remaining <= 10
+						and Color3.fromRGB(255, 75, 75)
+						or  Color3.fromRGB(255, 165, 50)
+				end
+				if elapsed >= killTimerDuration then
+					killTimerStart = nil
+					if killTimerLabel then
+						killTimerLabel.Text       = "Timeout! Resetting..."
+						killTimerLabel.TextColor3 = Color3.fromRGB(255, 75, 75)
 					end
-				end)
-				pcall(function()
-					local m1 = getM1Remote()
-					if m1 then m1:FireServer() end
-				end)
-				task.wait(FIRE_RATE)
+					pcall(function()
+						local char = getCharacter()
+						if char then
+							local h = char:FindFirstChildWhichIsA("Humanoid")
+							if h then h.Health = 0 end
+						end
+					end)
+					task.wait(3)
+				end
+			else
+				killTimerStart = nil
+				if killTimerLabel then
+					killTimerLabel.Text       = "Kill timer: waiting for boss"
+					killTimerLabel.TextColor3 = Color3.fromRGB(100, 90, 145)
+				end
 			end
-
-			if not questActive then task.wait(0.1) continue end
-
-			-- STEP 5: Fire QuestDone
-			if questStatusLabel then questStatusLabel.Text = "Jotaro dead! Firing QuestDone..." end
-			task.wait(0.3)
-			pcall(function()
-				workspace:WaitForChild("Map"):WaitForChild("NPCs"):WaitForChild("DIO"):WaitForChild("QuestDone"):FireServer()
-			end)
-			task.wait(1)
-
-			if questStatusLabel then questStatusLabel.Text = "Loop complete, restarting..." end
+			task.wait(0.5)
+		else
+			killTimerStart = nil
+			if killTimerLabel then
+				killTimerLabel.Text       = "Kill timer: OFF"
+				killTimerLabel.TextColor3 = Color3.fromRGB(65, 58, 100)
+			end
 			task.wait(0.5)
 		end
 	end
@@ -841,14 +726,6 @@ local THEME = {
         good = Color3.fromRGB( 80, 255, 155),
         bad  = Color3.fromRGB(255,  80,  80),
     },
-    quest = {    -- 📜  Neon Green
-        pri  = Color3.fromRGB( 50, 220,  90),
-        glow = Color3.fromRGB(100, 255, 140),
-        text = Color3.fromRGB(190, 255, 210),
-        sub  = Color3.fromRGB(130, 200, 155),
-        good = Color3.fromRGB( 80, 255, 155),
-        bad  = Color3.fromRGB(255,  80,  80),
-    },
 }
 
 -- ────────────────────────────────────────────────────────────
@@ -1068,7 +945,6 @@ end
 local spamTabBtn    = makeTabPill("spam",    "⚔  Spammer",   1)
 local webhookTabBtn = makeTabPill("webhook", "🔔  Webhook",   2)
 local standTabBtn   = makeTabPill("stand",   "★  Stand Roll", 3)
-local questTabBtn   = makeTabPill("quest",   "📜  Quests",    4)
 
 -- ────────────────────────────────────────────────────────────
 --  SCROLLABLE BODY
@@ -1455,26 +1331,21 @@ summonCountLabel.LayoutOrder         = 11
 summonCountLabel.TextXAlignment      = Enum.TextXAlignment.Right
 summonCountLabel.Parent              = spamContent
 
--- ════════════════════════════════════════════
---  BOSS KILL TIMER  —  Spam tab
--- ════════════════════════════════════════════
+-- ── Kill Timer section ───────────────────────────────────────
 makeSection(spamContent, "Kill Timer  (auto-reset on timeout)", 12, TS.pri)
 
--- Toggle row
 local killTimerRow = makeRow(spamContent, "Kill Timer:", 13, TS.pri)
 local killTimerStateLabel = makeStateBadge(killTimerRow)
 local killTimerToggleBtn, setKillTimerVis = makeToggle(killTimerRow, false, TS.pri)
 killTimerToggleBtn.MouseButton1Click:Connect(function()
     killTimerActive = not killTimerActive
     setKillTimerVis(killTimerActive)
-    killTimerStateLabel.Text      = killTimerActive and "ON" or "OFF"
-    killTimerStateLabel.TextColor3= killTimerActive and TS.bad or DIM
-    if not killTimerActive then
-        killTimerStart = nil
-    end
+    killTimerStateLabel.Text       = killTimerActive and "ON" or "OFF"
+    killTimerStateLabel.TextColor3 = killTimerActive and TS.bad or DIM
+    if not killTimerActive then killTimerStart = nil end
 end)
 
--- Duration stepper row (mirrors the webhook interval widget exactly)
+-- Duration stepper (mirrors the webhook interval widget)
 local killDurRow = Instance.new("Frame")
 killDurRow.Size             = UDim2.new(1, 0, 0, 38)
 killDurRow.BackgroundColor3 = CARD
@@ -1511,7 +1382,6 @@ corner(8, kdPlusBtn); newStroke(TS.pri, 1, kdPlusBtn)
 kdPlusBtn.MouseEnter:Connect(function() tw(kdPlusBtn, 0.12, {BackgroundColor3 = TS.pri}) end)
 kdPlusBtn.MouseLeave:Connect(function() tw(kdPlusBtn, 0.12, {BackgroundColor3 = CARD}) end)
 
--- Clickable centre label
 local kdLabel = Instance.new("TextButton")
 kdLabel.Text               = "60s"
 kdLabel.Font               = Enum.Font.GothamBold
@@ -1524,7 +1394,6 @@ kdLabel.Position           = UDim2.new(0, 50, 0, 0)
 kdLabel.TextXAlignment     = Enum.TextXAlignment.Center
 kdLabel.Parent             = killDurRow
 
--- Hidden TextBox for manual entry
 local kdEditBox = Instance.new("TextBox")
 kdEditBox.Text               = ""
 kdEditBox.Font               = Enum.Font.GothamBold
@@ -1543,9 +1412,9 @@ kdEditBox.Parent             = killDurRow
 corner(6, kdEditBox); newStroke(TS.pri, 1.2, kdEditBox)
 
 kdLabel.MouseButton1Click:Connect(function()
-    kdLabel.Visible  = false
+    kdLabel.Visible   = false
     kdEditBox.Visible = true
-    kdEditBox.Text   = ""
+    kdEditBox.Text    = ""
     kdEditBox:CaptureFocus()
 end)
 kdEditBox.FocusLost:Connect(function(entered)
@@ -1573,9 +1442,9 @@ kdPlusBtn.MouseButton1Click:Connect(function()
 end)
 
 -- Kill timer status pill
-local killTimerStatusLbl, killTimerStatusDot = makeStatusPill(spamContent, 15, TS.pri)
-killTimerStatusLbl.Text = "Kill timer: OFF"
-killTimerLabel = killTimerStatusLbl   -- wire to the background loop
+local killTimerPillLbl, killTimerPillDot = makeStatusPill(spamContent, 15, TS.pri)
+killTimerPillLbl.Text = "Kill timer: OFF"
+killTimerLabel = killTimerPillLbl
 
 local statusTxt, statusDot = makeStatusPill(spamContent, 16, TS.pri)
 statusTxt.Text = "Boss: searching..."
@@ -1870,66 +1739,10 @@ end)
 standStatusLabel = makeStatusPill(standContent, 11, TR.pri)
 standStatusLabel.Text = "Idle"
 
--- ════════════════════════════════════════════════════════════
---  📜  QUESTS TAB  —  Neon Green
--- ════════════════════════════════════════════════════════════
-local TQ = THEME.quest
-local questContent = makeContentFrame(bodyArea)
-
-makeSection(questContent, "DIO Quest — Jotaro Part 4", 1, TQ.pri)
-
--- Description card
-local questDescFrame = Instance.new("Frame")
-questDescFrame.Size             = UDim2.new(1, 0, 0, 0)
-questDescFrame.AutomaticSize    = Enum.AutomaticSize.Y
-questDescFrame.BackgroundColor3 = CARD
-questDescFrame.BorderSizePixel  = 0
-questDescFrame.LayoutOrder      = 2
-questDescFrame.Parent           = questContent
-corner(8, questDescFrame)
-newStroke(TQ.pri, 0.8, questDescFrame)
-local questDescPad = Instance.new("UIPadding")
-questDescPad.PaddingTop    = UDim.new(0, 8); questDescPad.PaddingBottom = UDim.new(0, 8)
-questDescPad.PaddingLeft   = UDim.new(0, 10); questDescPad.PaddingRight  = UDim.new(0, 10)
-questDescPad.Parent = questDescFrame
-
-local questDesc = Instance.new("TextLabel")
-questDesc.Text               = "Fires quest start → waits for Jotaro to be alive → teleports behind him → spams M1 until he dies → fires QuestDone → loops until toggled off."
-questDesc.Font               = Enum.Font.Gotham
-questDesc.TextSize           = 10
-questDesc.TextColor3         = TQ.sub
-questDesc.BackgroundTransparency = 1
-questDesc.Size               = UDim2.new(1, 0, 0, 0)
-questDesc.AutomaticSize      = Enum.AutomaticSize.Y
-questDesc.TextWrapped        = true
-questDesc.TextXAlignment     = Enum.TextXAlignment.Left
-questDesc.Parent             = questDescFrame
-
-makeSection(questContent, "Auto Quest", 3, TQ.pri)
-
-local questRow = makeRow(questContent, "Auto DIO Quest:", 4, TQ.pri)
-local questStateLabel = makeStateBadge(questRow)
-local questToggleBtn, setQuestVis = makeToggle(questRow, false, TQ.pri)
-
-questToggleBtn.MouseButton1Click:Connect(function()
-    questActive = not questActive
-    setQuestVis(questActive)
-    questStateLabel.Text      = questActive and "ON" or "OFF"
-    questStateLabel.TextColor3= questActive and TQ.good or DIM
-    if questActive then
-        if questStatusLabel then questStatusLabel.Text = "Starting quest loop..." end
-    else
-        if questStatusLabel then questStatusLabel.Text = "Stopped." end
-    end
-end)
-
-questStatusLabel = makeStatusPill(questContent, 5, TQ.pri)
-questStatusLabel.Text = "Idle"
 local function switchTab(tab)
     spamContent.Visible    = (tab == "spam")
     webhookContent.Visible = (tab == "webhook")
     standContent.Visible   = (tab == "stand")
-    questContent.Visible   = (tab == "quest")
 
     local th = THEME[tab]
 
@@ -1954,7 +1767,6 @@ switchTab("spam")   -- start on spam tab
 spamTabBtn.MouseButton1Click:Connect(function()    switchTab("spam")    end)
 webhookTabBtn.MouseButton1Click:Connect(function() switchTab("webhook") end)
 standTabBtn.MouseButton1Click:Connect(function()   switchTab("stand")   end)
-questTabBtn.MouseButton1Click:Connect(function()   switchTab("quest")   end)
 
 -- ════════════════════════════════════════════════════════════
 --  MINIMIZE / CLOSE
@@ -1981,7 +1793,7 @@ end)
 closeBtn.MouseButton1Click:Connect(function()
     spamActive = false; goActive = false; autoFireActive = false
     autoSummonActive = false; webhookActive = false; standRollActive = false
-    questActive = false; autoFireNPCActive = false; autoDiavoloActive = false
+    autoFireNPCActive = false; autoDiavoloActive = false
     killTimerActive = false; killTimerStart = nil
     if summonDeathConn then summonDeathConn:Disconnect() end
     tw(frame,     0.18, {BackgroundTransparency = 1})
