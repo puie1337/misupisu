@@ -410,13 +410,11 @@ if LocalPlayer.Character then connectSummonDeath(LocalPlayer.Character) end
 -- AUTO QUEST LOGIC
 -- ──────────────────────────────────────────────
 
--- Quest Settings
+-- Quest Settings (keys prefixed aq* so they never clash with boss spammer SPAM_REMOTES)
 local AQSettings = {
-    attackEnabled = {
-        M1      = true,
-        Barrage = true,
-        Heavy   = false,
-    },
+    aqM1      = true,
+    aqBarrage = true,
+    aqHeavy   = false,
     selectedQuest  = nil,
     running        = false,
     smartQuest     = false,
@@ -479,24 +477,24 @@ local Quests = {
       done = function() workspace:WaitForChild("Map"):WaitForChild("NPCs"):WaitForChild("Young Joseph"):WaitForChild("QuestDone"):FireServer() end },
 }
 
--- Attack function using AQSettings
+-- Attack function — uses its own AQSettings flags, completely separate from SPAM_REMOTES
 local function aqDoAttacks()
     local aqChar = LocalPlayer.Character
     if not aqChar then return end
     local standEvents = aqChar:FindFirstChild("StandEvents")
     if not standEvents then return end
 
-    if AQSettings.attackEnabled.M1 then
+    if AQSettings.aqM1 then
         local remote = standEvents:FindFirstChild("M1")
         if remote then remote:FireServer() end
         task.wait(AQSettings.attackDelay)
     end
-    if AQSettings.attackEnabled.Barrage then
+    if AQSettings.aqBarrage then
         local remote = standEvents:FindFirstChild("Barrage")
         if remote then remote:FireServer(true) end
         task.wait(AQSettings.attackDelay)
     end
-    if AQSettings.attackEnabled.Heavy then
+    if AQSettings.aqHeavy then
         local remote = standEvents:FindFirstChild("Heavy")
         if remote then remote:FireServer() end
         task.wait(AQSettings.attackDelay)
@@ -564,45 +562,60 @@ end
 local aqStatusLabel = nil
 local aqDropBtn     = nil
 
-local aqActiveQuest = { value = nil }
-
-local function aqRemoteLoop()
-    while AQSettings.running do
-        if aqActiveQuest.value then
-            pcall(aqActiveQuest.value.take)
-            pcall(aqActiveQuest.value.done)
-        end
-        task.wait(0.5)
-    end
-end
-
 local function aqRunQuest(startQuest)
-    aqActiveQuest.value = startQuest
-    task.spawn(aqRemoteLoop)
+    local currentQuest = startQuest
 
     while AQSettings.running do
+        -- Smart mode: pick best quest for current level
         if AQSettings.smartQuest then
             local smart = aqGetSmartQuest()
-            if smart and smart.name ~= aqActiveQuest.value.name then
-                aqActiveQuest.value = smart
+            if smart then
+                currentQuest = smart
                 AQSettings.selectedQuest = smart
-                if aqDropBtn    then aqDropBtn.Text    = "▼  " .. smart.name end
-                if aqStatusLabel then aqStatusLabel.Text = "Status: Smart — " .. smart.name end
+                if aqDropBtn     then aqDropBtn.Text = "▼  " .. smart.name end
+                if aqStatusLabel then aqStatusLabel.Text = "Farming: Smart — " .. smart.name end
             end
         end
 
-        local timeout = tick() + 120
-        repeat
-            local enemies = aqGetEnemies(aqActiveQuest.value.enemyName)
+        -- STEP 1: Take the quest
+        if aqStatusLabel then aqStatusLabel.Text = "Taking quest: " .. currentQuest.name end
+        pcall(currentQuest.take)
+        task.wait(0.5)
+
+        if not AQSettings.running then break end
+
+        -- STEP 2: Wait for enemies to spawn (up to 15s)
+        if aqStatusLabel then aqStatusLabel.Text = "Waiting for enemies..." end
+        local waited = 0
+        while AQSettings.running and #aqGetEnemies(currentQuest.enemyName) == 0 and waited < 15 do
+            task.wait(0.5)
+            waited += 0.5
+        end
+
+        if not AQSettings.running then break end
+
+        -- STEP 3: Kill all enemies
+        if aqStatusLabel then aqStatusLabel.Text = "Killing: " .. currentQuest.enemyName end
+        local killTimeout = tick() + 120
+        while AQSettings.running and tick() < killTimeout do
+            local enemies = aqGetEnemies(currentQuest.enemyName)
             if #enemies > 0 then
                 aqKillEnemy(enemies[1])
-                task.wait(0.2)
+                task.wait(0.1)
             else
-                task.wait(0.3)
+                break
             end
-        until not AQSettings.running or tick() > timeout
+        end
 
-        task.wait(0.2)
+        if not AQSettings.running then break end
+
+        -- STEP 4: Complete the quest
+        if aqStatusLabel then aqStatusLabel.Text = "Completing quest..." end
+        pcall(currentQuest.done)
+        task.wait(1)
+
+        if aqStatusLabel then aqStatusLabel.Text = "Loop done, restarting..." end
+        task.wait(0.5)
     end
 end
 
@@ -1871,20 +1884,20 @@ end)
 makeSection(questContent, "Attack Config", 3, TQ.pri)
 
 local aqAtkDefs = {
-    { key = "M1",      label = "M1 Punch"   },
-    { key = "Barrage", label = "Barrage"     },
-    { key = "Heavy",   label = "Heavy Punch" },
+    { key = "aqM1",      label = "M1 Punch"   },
+    { key = "aqBarrage", label = "Barrage"     },
+    { key = "aqHeavy",   label = "Heavy Punch" },
 }
 for _, atk in ipairs(aqAtkDefs) do
     local atkRow   = makeRow(questContent, atk.label .. ":", 4, TQ.pri)
     local atkBadge = makeStateBadge(atkRow)
-    local on0      = AQSettings.attackEnabled[atk.key]
+    local on0      = AQSettings[atk.key]
     atkBadge.Text       = on0 and "ON" or "OFF"
     atkBadge.TextColor3 = on0 and TQ.good or DIM
     local atkTogBtn, setAtkVis = makeToggle(atkRow, on0, TQ.pri)
     atkTogBtn.MouseButton1Click:Connect(function()
-        AQSettings.attackEnabled[atk.key] = not AQSettings.attackEnabled[atk.key]
-        local on = AQSettings.attackEnabled[atk.key]
+        AQSettings[atk.key] = not AQSettings[atk.key]
+        local on = AQSettings[atk.key]
         setAtkVis(on)
         atkBadge.Text       = on and "ON" or "OFF"
         atkBadge.TextColor3 = on and TQ.good or DIM
